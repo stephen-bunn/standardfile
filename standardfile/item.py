@@ -8,6 +8,10 @@ import attr
 import arrow
 
 
+T_String = TypeVar("String")
+T_Item = TypeVar("Item")
+
+
 class ContentType(enum.Enum):
     """The various content types an item can have.
     """
@@ -23,7 +27,37 @@ class ContentType(enum.Enum):
     SN_USER_PREFERENCES = "SN|UserPreferences"
 
 
-T_Item = TypeVar("Item")
+@attr.s
+class String(Generic[T_String]):
+    """Defines a Standard File string.
+    """
+
+    version = attr.ib(type=str)
+    auth_hash = attr.ib(type=str)
+    uuid = attr.ib(type=str)
+    iv = attr.ib(type=str)
+    cipher_text = attr.ib(type=str)
+
+    @classmethod
+    def from_string(cls, string: str) -> T_String:
+        """Creates an instance from a string.
+
+        :param string: The string to create an instance from
+        :type string: str
+        :return: An instance of ``String``
+        :rtype: T_String
+        """
+        return cls(*string.split(":"))
+
+    def to_string(self) -> str:
+        """Writes string out to a dictionary.
+
+        :return: The resulting string
+        :rtype: str
+        """
+        return ":".join(
+            [self.version, self.auth_hash, self.uuid, self.iv, self.cipher_text]
+        )
 
 
 @attr.s

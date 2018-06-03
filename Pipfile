@@ -10,6 +10,8 @@ furl = "*"
 requests-toolbelt = "*"
 ujson = "*"
 arrow = "*"
+isort = "*"
+pycrypto = "*"
 
 [dev-packages]
 black = "*"

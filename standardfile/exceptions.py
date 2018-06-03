@@ -54,4 +54,18 @@ class MFAInvalid(AuthException):
     pass
 
 
+class TamperException(StandardFileException):
+    """The exception namespace for all tamper based exceptions.
+    """
+
+    pass
+
+
+class TamperDetected(TamperException):
+    """Raised when string tampering is detected.
+    """
+
+    pass
+
+
 EXCEPTION_MAPPING = {"mfa-invalid": MFAInvalid, "mfa-required": MFARequired}

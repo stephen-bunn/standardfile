@@ -16,12 +16,9 @@ from ._common import StandardFileObject
 @attr.s
 class StandardFileClient(StandardFileObject):
     host = attr.ib(type=str, default=constants.DEFAULT_HOST)
-    port = attr.ib(type=int, default=80)
     session = attr.ib(
         type=BaseUrlSession,
-        default=attr.Factory(
-            lambda self: BaseUrlSession(f"{self.host}:{self.port}"), takes_self=True
-        ),
+        default=attr.Factory(lambda self: BaseUrlSession(self.host), takes_self=True),
         repr=False,
         init=False,
     )

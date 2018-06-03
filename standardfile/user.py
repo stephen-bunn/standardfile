@@ -1,20 +1,24 @@
 # Copyright (c) 2018 Stephen Bunn <stephen@bunn.io>
 # MIT License <https://opensource.org/licenses/MIT>
 
+import os
 import hashlib
 import binascii
 import textwrap
+from pathlib import Path
 from typing import Any, List, Generic, TypeVar
 
 import attr
 from requests import Session
 from requests_toolbelt.sessions import BaseUrlSession
+from Crypto.Cipher import AES
 
 import ujson
 
 from . import constants, exceptions
 from .auth import AuthKeys
 from .item import Item
+from .cryptography import Cryptographer
 from ._common import StandardFileObject
 
 T_User = TypeVar("User")
@@ -31,11 +35,14 @@ class User(Generic[T_User], StandardFileObject):
     session = attr.ib(
         type=Session, default=BaseUrlSession(constants.DEFAULT_HOST), repr=False
     )
+    sync_parent = attr.ib(type=str, default=os.getcwd(), converter=Path)
     uuid = attr.ib(type=str, default=None, init=False)
-    items = attr.ib(type=list, default=attr.Factory(list), init=False, repr=False)
+    auth_keys = attr.ib(type=AuthKeys, default=None, init=False, repr=False)
+    items = attr.ib(type=dict, default=attr.Factory(dict), init=False, repr=False)
 
     __authenticated = False
     __sync_token = None
+    __cursor_token = None
 
     @property
     def mfa_required(self) -> bool:
@@ -70,6 +77,20 @@ class User(Generic[T_User], StandardFileObject):
         """
         return self.__authenticated
 
+    @property
+    def sync_dir(self) -> Path:
+        """Returns the sync directory for the user.
+
+        :return: The local sync directory
+        :rtype: Path
+        """
+
+        if not self.uuid:
+            raise exceptions.AuthRequired(
+                f"{self.email!r} must be authenticated before sync directory can exist"
+            )
+        return self.sync_parent.joinpath(self.uuid)
+
     @classmethod
     def _build_keys(
         cls,
@@ -97,7 +118,7 @@ class User(Generic[T_User], StandardFileObject):
         :return: An instance of ``AuthKeys``
         :rtype: AuthKeys
         """
-        digest = binascii.hexlify(
+        digest = binascii.b2a_hex(
             getattr(hashlib, crypt_algo)(
                 hash_algo, password.encode(), salt.encode(), cost, dklen=key_size
             )
@@ -152,35 +173,126 @@ class User(Generic[T_User], StandardFileObject):
                 f"pw_cost {self._pw_cost!r} is less than the minimum {minimum_cost!r}"
             )
 
-        self._auth_keys = self._build_keys(password, self._pw_salt, self._pw_cost)
-        params["password"] = self._auth_keys.password_key
+        self.auth_keys = self._build_keys(password, self._pw_salt, self._pw_cost)
+        params["password"] = self.auth_keys.password_key
         result = self._make_request("post", "sign_in", params=params)
 
         self.uuid = result["user"]["uuid"]
         self.session.headers.update({"Authorization": f"Bearer {result['token']}"})
         self.__authenticated = True
 
-        return self
-
-    def sync(self) -> List[Item]:
+    def sync(self, items: List[Item] = [], full: bool = False) -> dict:
         """Syncs the authenicated user's items.
 
+        :param items: A list of items to sync to the remote, defaults to []
+        :type items: List[Item], optional
+        :param full: Indicates if sync should be full sync, defaults to False
+        :type full: bool, optional
         :raises exceptions.AuthRequired: If the calling user is not authenticated
-        :return: A list of retrieved items
-        :rtype: List[Item]
+        :return: The server response dictionary
+        :rtype: dict
         """
         if not self.authenticated:
             raise exceptions.AuthRequired(
                 f"{self.email!r} must login before they can sync"
             )
 
+        if not self.sync_dir.is_dir():
+            self.sync_dir.mkdir()
+
         params = {}
-        if self.__sync_token:
+        if self.__sync_token and not full:
             params["sync_token"] = self.__sync_token
+        if isinstance(items, list) and len(items) > 0:
+            params["items"] = ujson.dumps([item.to_dict() for item in items])
         result = self._make_request("post", "sync", params=params)
 
-        self.items = []
+        # handle new items
         for item in result.get("retrieved_items", []):
-            self.items.append(Item.from_dict(item))
+            item = Item.from_dict(item)
+            self.items[item.uuid] = item
 
-        return self.items
+            with self.sync_dir.joinpath(item.uuid).open("w") as stream:
+                ujson.dump(item.to_dict(), stream)
+
+        # handle updated items
+        for item in result.get("saved_items", []):
+            item = Item.from_dict(item)
+            if item.uuid not in self.items:
+                self.items[item.uuid] = item
+
+            write_to = self.sync_dir.joinpath(item.uuid)
+            if write_to.is_file():
+                with write_to.open("r") as stream:
+                    local_content = ujson.load(stream)
+                    remote_content = item.to_dict()
+
+                    del remote_content["content"]
+                    local_content.update(remote_content)
+
+                    with write_to.open("w") as rewrite_stream:
+                        ujson.dump(local_content, rewrite_stream)
+
+        # TODO: handle unsaved items
+
+        self.__sync_token = result.get("sync_token")
+        self.__cursor_token = result.get("cursor_token")
+
+        return result
+
+    def decrypt(self, item: Item) -> dict:
+        """Decrypt a user's item.
+
+        :param item: The item to decrypt
+        :type item: Item
+        :raises ValueError: If the item has no content
+        :raises exceptions.AuthRequired: If the calling user isn't authenticated yet
+        :raises exceptions.TamperDetected: When the local uuid doesn't match the item id
+        :return: The resulting content dictionary
+        :rtype: dict
+        """
+
+        if not self.authenticated:
+            raise exceptions.AuthRequired(
+                f"{self.email!r} must login before they can decrypt"
+            )
+        if not item.content or len(item.content) <= 0:
+            raise ValueError(f"item {item!r} has no content")
+
+        enc_string = Cryptographer.parse_string(item.enc_item_key)
+        if item.uuid != enc_string.uuid:
+            raise exceptions.TamperDetected(
+                (
+                    f"item uuid {item.uuid!r} does not match encryption key "
+                    f"uuid {enc_string.uuid!r}"
+                )
+            )
+
+        item_key = Cryptographer.decrypt_string(
+            enc_string,
+            binascii.a2b_hex(self.auth_keys.master_key),
+            binascii.a2b_hex(self.auth_keys.auth_key),
+        )
+
+        item_split = len(item_key) // 2
+        (item_encryption_key, item_auth_key) = (
+            item_key[:item_split],
+            item_key[item_split:],
+        )
+
+        content_string = Cryptographer.parse_string(item.content)
+        if item.uuid != content_string.uuid:
+            raise exceptions.TamperDetected(
+                (
+                    f"item uuid {item.uuid!r} does not match content "
+                    f"uuid {content_string.uuid!r}"
+                )
+            )
+
+        return ujson.loads(
+            Cryptographer.decrypt_string(
+                content_string,
+                binascii.a2b_hex(item_encryption_key),
+                binascii.a2b_hex(item_auth_key),
+            )
+        )
