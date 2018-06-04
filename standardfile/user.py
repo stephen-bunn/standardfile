@@ -48,7 +48,7 @@ class User(Generic[T_User]):
     auth_keys = attr.ib(type=UserAuth, default=None, init=False, repr=False)
     items = attr.ib(type=dict, default=attr.Factory(dict), init=False, repr=False)
 
-    __authenticated = False
+    _authenticated = False
     __sync_token = None
     __cursor_token = None
 
@@ -94,7 +94,7 @@ class User(Generic[T_User]):
         :return: True if the user is authenticated, otherwise False
         :rtype: bool
         """
-        return self.__authenticated
+        return self._authenticated
 
     @property
     def sync_dir(self) -> Path:
@@ -207,8 +207,7 @@ class User(Generic[T_User]):
         user.auth_keys = auth_keys
         user.uuid = result["user"]["uuid"]
         user.session.headers.update({"Authorization": f"Bearer {result['token']}"})
-        # FIXME: this is messy
-        user._User__authenticated = True
+        user._authenticated = True
 
     @classmethod
     def login(
@@ -311,7 +310,7 @@ class User(Generic[T_User]):
 
         self.uuid = result["user"]["uuid"]
         self.session.headers.update({"Authorization": f"Bearer {result['token']}"})
-        self.__authenticated = True
+        self._authenticated = True
 
     def sync(self, items: List[Item] = [], full: bool = False) -> dict:
         """Syncs the authenicated user's items.
