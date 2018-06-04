@@ -2,6 +2,7 @@
 # MIT License <https://opensource.org/licenses/MIT>
 
 import os
+import uuid
 import hashlib
 import secrets
 import binascii
@@ -10,6 +11,7 @@ from pathlib import Path
 from typing import Any, List, Generic, TypeVar
 
 import attr
+import arrow
 from requests import Session
 from requests_toolbelt.sessions import BaseUrlSession
 
@@ -371,6 +373,41 @@ class User(Generic[T_User]):
 
         return result
 
+    def encrypt(self, content: str, content_type: str) -> Item:
+        """Encrypts some content into a new item instance.
+
+        :param content: The content to encrypt
+        :type content: str
+        :param content_type: Some kind of content type descriptor
+        :type content_type: str
+        :return: A new item instance
+        :rtype: Item
+        """
+        item_uuid = str(uuid.uuid4())
+        item_key = secrets.token_hex(512 // 8 // 2)
+        key_split = len(item_key) // 2
+        (encryption_key, auth_key,) = (item_key[:key_split], item_key[key_split:])
+        return Item(
+            uuid=item_uuid,
+            content=Cryptographer.encrypt_string(
+                content,
+                item_uuid,
+                binascii.a2b_hex(encryption_key),
+                binascii.a2b_hex(auth_key),
+            ).to_string(),
+            content_type=content_type,
+            enc_item_key=Cryptographer.encrypt_string(
+                item_key,
+                item_uuid,
+                binascii.a2b_hex(self.auth_keys.master_key),
+                binascii.a2b_hex(self.auth_keys.auth_key)
+            ).to_string(),
+            deleted=False,
+            created_at=arrow.utcnow().isoformat(),
+            updated_at=arrow.utcnow().isoformat(),
+            auth_hash=None,
+        )
+
     def decrypt(self, item: Item) -> dict:
         """Decrypt a user's item.
 
@@ -411,10 +448,8 @@ class User(Generic[T_User]):
             item_key[:item_split],
             item_key[item_split:],
         )
-        return ujson.loads(
-            Cryptographer.decrypt_string(
-                item.content,
-                binascii.a2b_hex(item_encryption_key),
-                binascii.a2b_hex(item_auth_key),
-            )
+        return Cryptographer.decrypt_string(
+            item.content,
+            binascii.a2b_hex(item_encryption_key),
+            binascii.a2b_hex(item_auth_key),
         )

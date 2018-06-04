@@ -1,14 +1,11 @@
 # Copyright (c) 2018 Stephen Bunn <stephen@bunn.io>
 # MIT License <https://opensource.org/licenses/MIT>
 
-import re
+import enum
 from typing import Any, Generic, TypeVar
 
 import attr
 import arrow
-
-from .models import ContentType
-
 
 T_String = TypeVar("String")
 T_Item = TypeVar("Item")
@@ -57,7 +54,7 @@ class Item(Generic[T_Item]):
 
     uuid = attr.ib(type=str)
     content = attr.ib(type=str, repr=False)
-    content_type = attr.ib(type=str, converter=ContentType, repr=False)
+    content_type = attr.ib(type=str, repr=False)
     enc_item_key = attr.ib(type=str, repr=False)
     deleted = attr.ib(type=bool, repr=False)
     created_at = attr.ib(type=str, converter=arrow.get, repr=False)
@@ -95,7 +92,6 @@ class Item(Generic[T_Item]):
             dict(
                 created_at=self.created_at.isoformat(),
                 updated_at=self.updated_at.isoformat(),
-                content_type=self.content_type.value,
             )
         )
         if isinstance(self.content, String):
