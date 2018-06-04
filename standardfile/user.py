@@ -49,6 +49,7 @@ class User(Generic[T_User]):
     items = attr.ib(type=dict, default=attr.Factory(dict), init=False, repr=False)
 
     _authenticated = False
+    _unsynced = []
     __sync_token = None
     __cursor_token = None
 
@@ -275,6 +276,36 @@ class User(Generic[T_User]):
                 self._mfa_required = True
                 self._mfa_key = error.get("payload", {}).get("mfa_key")
 
+    def _build_item_path(self, item: Item) -> Path:
+        """Builds the local path object for a given item.
+
+        :param item: The item to build the local path for
+        :type item: Item
+        :return: The resulting path instance
+        :rtype: Path
+        """
+        return self.sync_dir.joinpath(item.uuid)
+
+    def _item_synced(self, item: Item) -> bool:
+        """Checks if the given item is currently synced.
+
+        :param item: The item to check
+        :type item: Item
+        :return: True if synced, otherwise False
+        :rtype: bool
+        """
+        return item.uuid in self.items and item.uuid not in self._unsynced
+
+    def _item_exists(self, item: Item) -> bool:
+        """Checks if the given item exists locally.
+
+        :param item: The item to check
+        :type item: Item
+        :return: True if exists locally, otherwise False
+        :rtype: bool
+        """
+        return self._build_item_path(item).is_file()
+
     def authenticate(self, password: str, mfa: str = None) -> T_User:
         """Logs the user into the standard file server.
 
@@ -334,8 +365,15 @@ class User(Generic[T_User]):
         params = {}
         if self.__sync_token and not full:
             params["sync_token"] = self.__sync_token
+
+        unsynced_items = []
         if isinstance(items, list) and len(items) > 0:
-            params["items"] = ujson.dumps([item.to_dict() for item in items])
+            unsynced_items.extend(items)
+        if isinstance(self._unsynced, list) and len(self._unsynced) > 0:
+            unsynced_items.extend(self._unsynced)
+            self._unsynced = []
+        if len(unsynced_items) > 0:
+            params["items"] = ujson.dumps([item.to_dict() for item in unsynced_items])
         result = self._make_request("post", "sync", params=params)
 
         # handle new items
@@ -343,7 +381,7 @@ class User(Generic[T_User]):
             item = Item.from_dict(item)
             self.items[item.uuid] = item
 
-            with self.sync_dir.joinpath(item.uuid).open("w") as stream:
+            with self._build_item_path(item).open("w") as stream:
                 ujson.dump(item.to_dict(), stream)
 
         # handle updated items
@@ -352,7 +390,7 @@ class User(Generic[T_User]):
             if item.uuid not in self.items:
                 self.items[item.uuid] = item
 
-            write_to = self.sync_dir.joinpath(item.uuid)
+            write_to = self._build_item_path(item)
             if write_to.is_file():
                 with write_to.open("r") as stream:
                     local_content = ujson.load(stream)
@@ -385,7 +423,7 @@ class User(Generic[T_User]):
         item_uuid = str(uuid.uuid4())
         item_key = secrets.token_hex(512 // 8 // 2)
         key_split = len(item_key) // 2
-        (encryption_key, auth_key,) = (item_key[:key_split], item_key[key_split:])
+        (encryption_key, auth_key) = (item_key[:key_split], item_key[key_split:])
         return Item(
             uuid=item_uuid,
             content=Cryptographer.encrypt_string(
@@ -399,7 +437,7 @@ class User(Generic[T_User]):
                 item_key,
                 item_uuid,
                 binascii.a2b_hex(self.auth_keys.master_key),
-                binascii.a2b_hex(self.auth_keys.auth_key)
+                binascii.a2b_hex(self.auth_keys.auth_key),
             ).to_string(),
             deleted=False,
             created_at=arrow.utcnow().isoformat(),
@@ -452,3 +490,92 @@ class User(Generic[T_User]):
             binascii.a2b_hex(item_encryption_key),
             binascii.a2b_hex(item_auth_key),
         )
+
+    def create(self, item: Item, sync: bool = False):
+        """Creates a new item on both the remote and local.
+
+        :param item: The item to create
+        :type item: Item
+        :param sync: True if sync should occur immediately, defaults to False
+        :param sync: bool, optional
+        :raises ValueError:
+            - When item is already synced
+            - When item already exists locally
+        """
+        item_path = self._build_item_path(item)
+        if self._item_synced(item):
+            raise ValueError(f"item {item!r} already exists in sync")
+        if self._item_exists(item):
+            raise ValueError(f"item {item!r} already exists locally")
+        self.items[item.uuid] = item
+        with item_path.open("w") as stream:
+            ujson.dump(item.to_dict(), stream)
+        if sync:
+            self.sync(items=[item])
+        else:
+            self._unsynced.append(item)
+
+    def create_from(self, filepath: str, content_type: str, sync: bool = False) -> Item:
+        """Creates a new item on both the remote and local from a file on the local.
+
+        :param filepath: The filepath to add to the sync
+        :type filepath: str
+        :param content_type: The content type of the filepath
+        :type content_type: str
+        :param sync: True if sync should occur immediately, defaults to False
+        :param sync: bool, optional
+        :raises ValueError: When filepath does not exist
+        :return: The created item
+        :rtype: Item
+        """
+        filepath = Path(filepath)
+        if not filepath.is_file():
+            raise ValueError(f"no such file {filepath!r} exists")
+        with filepath.open("r") as stream:
+            created_item = self.encrypt(stream.read(), content_type)
+            self.create(created_item)
+            return created_item
+
+    def delete(self, item: Item, sync: bool = False):
+        """Deletes an item from the sync.
+
+        :param item: The item to delete
+        :type item: Item
+        :param sync: True if sync should occur immediately, defaults to False
+        :param sync: bool, optional
+        :raises ValueError:
+            - When the item is not currently synced
+            - When the item does not exist locally
+        """
+        item_path = self._build_item_path(item)
+        if not self._item_synced(item):
+            raise ValueError(f"no such item {item!r} is currently synced")
+        if not self._item_exists(item):
+            raise ValueError(f"no such item {item!r} exists locally")
+        self.items[item.uuid].deleted = True
+        item_path.unlink()
+        if sync:
+            self.sync(items=[item])
+        else:
+            self._unsynced.append(item)
+
+    def update(self, item: Item, sync: bool = False):
+        """Updates the content of an existing item to the remote.
+
+        :param item: The item to update
+        :type item: Item
+        :param sync: True if sync should occur immediately, defaults to False
+        :param sync: bool, optional
+        :raises ValueError:
+            - When the item is not currently synced
+            - When the item does not exist locally
+        """
+
+        if not self._item_synced(item):
+            raise ValueError(f"no such item {item!r} is currently synced")
+        if not self._item_exists(item):
+            raise ValueError(f"no such item {item!r} exists locally")
+        if sync:
+            self.sync(items=[item])
+        else:
+            self._unsynced.append(item)
