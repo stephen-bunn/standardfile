@@ -1,30 +1,17 @@
 # Copyright (c) 2018 Stephen Bunn <stephen@bunn.io>
 # MIT License <https://opensource.org/licenses/MIT>
 
-import enum
+import re
 from typing import Any, Generic, TypeVar
 
 import attr
 import arrow
 
+from .models import ContentType
+
 
 T_String = TypeVar("String")
 T_Item = TypeVar("Item")
-
-
-class ContentType(enum.Enum):
-    """The various content types an item can have.
-    """
-
-    UNKNOWN = None
-    NOTE = "Note"
-    TAG = "Tag"
-    EXTENSION = "Extension"
-    SF_MFA = "SF|MFA"
-    SF_Extension = "SF|Extension"
-    SN_COMPONENT = "SN|Component"
-    SN_THEME = "SN|Theme"
-    SN_USER_PREFERENCES = "SN|UserPreferences"
 
 
 @attr.s
@@ -33,10 +20,10 @@ class String(Generic[T_String]):
     """
 
     version = attr.ib(type=str)
-    auth_hash = attr.ib(type=str)
+    auth_hash = attr.ib(type=str, repr=False)
     uuid = attr.ib(type=str)
-    iv = attr.ib(type=str)
-    cipher_text = attr.ib(type=str)
+    iv = attr.ib(type=str, repr=False)
+    cipher_text = attr.ib(type=str, repr=False)
 
     @classmethod
     def from_string(cls, string: str) -> T_String:
@@ -47,7 +34,8 @@ class String(Generic[T_String]):
         :return: An instance of ``String``
         :rtype: T_String
         """
-        return cls(*string.split(":"))
+        if isinstance(string, str):
+            return cls(*string.split(":"))
 
     def to_string(self) -> str:
         """Writes string out to a dictionary.
@@ -76,6 +64,14 @@ class Item(Generic[T_Item]):
     updated_at = attr.ib(type=str, converter=arrow.get, repr=False)
     auth_hash = attr.ib(type=str, default=None, repr=False)
 
+    def __attrs_post_init__(self):
+        """Initializes class attributes after initial initialization.
+        """
+        if isinstance(self.enc_item_key, str):
+            self.enc_item_key = String.from_string(self.enc_item_key)
+        if isinstance(self.content, str) and isinstance(self.enc_item_key, String):
+            self.content = String.from_string(self.content)
+
     @classmethod
     def from_dict(cls, item_dict: dict) -> T_Item:
         """Creates an instance from a dictionary.
@@ -85,7 +81,8 @@ class Item(Generic[T_Item]):
         :return: An instance of ``Item``
         :rtype: T_Item
         """
-        return cls(**item_dict)
+        if isinstance(item_dict, dict) and len(item_dict) > 0:
+            return cls(**item_dict)
 
     def to_dict(self) -> dict:
         """Writes item out to a dictionary.
@@ -101,4 +98,9 @@ class Item(Generic[T_Item]):
                 content_type=self.content_type.value,
             )
         )
+        if isinstance(self.content, String):
+            retn["content"] = self.content.to_string()
+        if isinstance(self.enc_item_key, String):
+            retn["enc_item_key"] = self.enc_item_key.to_string()
+
         return retn

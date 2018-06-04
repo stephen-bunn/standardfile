@@ -127,17 +127,6 @@ class Cryptographer(object):
         )
 
     @staticmethod
-    def parse_string(string: str) -> String:
-        """Parses a string into a item's string.
-
-        :param string: The string to parse
-        :type string: str
-        :return: The item string object
-        :rtype: String
-        """
-        return String.from_string(string)
-
-    @staticmethod
     def decrypt_string(string: String, encryption_key: bytes, auth_key: bytes) -> bytes:
         """Decrypts a string using a encryption and authentication key.
 

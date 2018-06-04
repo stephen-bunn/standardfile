@@ -3,6 +3,7 @@
 
 import os
 import hashlib
+import secrets
 import binascii
 import textwrap
 from pathlib import Path
@@ -11,38 +12,54 @@ from typing import Any, List, Generic, TypeVar
 import attr
 from requests import Session
 from requests_toolbelt.sessions import BaseUrlSession
-from Crypto.Cipher import AES
 
 import ujson
 
 from . import constants, exceptions
-from .auth import AuthKeys
-from .item import Item
+from .item import Item, String
 from .cryptography import Cryptographer
-from ._common import StandardFileObject
 
 T_User = TypeVar("User")
 
 
 @attr.s
-class User(Generic[T_User], StandardFileObject):
+class UserAuth(object):
+    """Defins a Standard File user's authentication store.
+    """
+
+    password_key = attr.ib(type=str)
+    master_key = attr.ib(type=str)
+    auth_key = attr.ib(type=str)
+
+
+@attr.s
+class User(Generic[T_User]):
     """Defines a Standard File user.
 
     Defined by StandardFile at `<https://standardfile.org/#user>`__.
     """
 
     email = attr.ib(type=str)
-    session = attr.ib(
-        type=Session, default=BaseUrlSession(constants.DEFAULT_HOST), repr=False
-    )
-    sync_parent = attr.ib(type=str, default=os.getcwd(), converter=Path)
+    host = attr.ib(type=str, default=constants.DEFAULT_HOST, repr=False)
+    sync_parent = attr.ib(type=str, default=os.getcwd(), converter=Path, repr=False)
     uuid = attr.ib(type=str, default=None, init=False)
-    auth_keys = attr.ib(type=AuthKeys, default=None, init=False, repr=False)
+    auth_keys = attr.ib(type=UserAuth, default=None, init=False, repr=False)
     items = attr.ib(type=dict, default=attr.Factory(dict), init=False, repr=False)
 
     __authenticated = False
     __sync_token = None
     __cursor_token = None
+
+    @property
+    def session(self) -> Session:
+        """The session to use for requests.
+
+        :return: The session to use for requests
+        :rtype: Session
+        """
+        if not hasattr(self, "_session"):
+            self._session = BaseUrlSession(self.host)
+        return self._session
 
     @property
     def mfa_required(self) -> bool:
@@ -92,6 +109,25 @@ class User(Generic[T_User], StandardFileObject):
         return self.sync_parent.joinpath(self.uuid)
 
     @classmethod
+    def _handle_error(cls, error: dict):
+        """Handles error responses from the Standard File api.
+
+        :param error: The response error dictionary
+        :type error: dict
+        :raises exceptions.StandardFileException: On any handled error
+        """
+        if error:
+            error_message = error.get("message", "no error message provided")
+            error_payload = error.get("payload", {})
+            error_tag = error.get("tag")
+            if error_tag in exceptions.EXCEPTION_MAPPING:
+                raise exceptions.EXCEPTION_MAPPING[error_tag](
+                    error_message, error_payload
+                )
+            else:
+                raise exceptions.StandardFileException(error_message, error_payload)
+
+    @classmethod
     def _build_keys(
         cls,
         password: str,
@@ -100,8 +136,8 @@ class User(Generic[T_User], StandardFileObject):
         crypt_algo: str = "pbkdf2_hmac",
         hash_algo: str = "sha512",
         key_size: int = 768 // 8,  # TODO: get this from somehwere
-    ) -> AuthKeys:
-        """Builds an ``AuthKeys`` instance for a password/salt/cost pairing.
+    ) -> UserAuth:
+        """Builds an ``UserAuth`` instance for a password/salt/cost pairing.
 
         :param password: The password to use for generating the keys
         :type password: str
@@ -115,15 +151,109 @@ class User(Generic[T_User], StandardFileObject):
         :param hash_algo: str, optional
         :param key_size: The size of the key to generate, defaults to ``768 // 8``
         :param key_size: int, optional
-        :return: An instance of ``AuthKeys``
-        :rtype: AuthKeys
+        :return: An instance of ``UserAuth``
+        :rtype: UserAuth
         """
         digest = binascii.b2a_hex(
             getattr(hashlib, crypt_algo)(
                 hash_algo, password.encode(), salt.encode(), cost, dklen=key_size
             )
         ).decode()
-        return AuthKeys(*textwrap.wrap(digest, width=int(len(digest) / 3)))
+        return UserAuth(*textwrap.wrap(digest, width=int(len(digest) / 3)))
+
+    @classmethod
+    def register(
+        cls,
+        email: str,
+        password: str,
+        host: str = constants.DEFAULT_HOST,
+        cost: int = 60000,
+        *args,
+        **kwargs,
+    ) -> T_User:
+        """Registers a new user in the Standard File server.
+
+        :param email: The email to register
+        :type email: str
+        :param password: The password to register
+        :type password: str
+        :param host: The host to register to, defaults to constants.DEFAULT_HOST
+        :param host: str, optional
+        :param cost: The password iteration cost, defaults to 60000
+        :param cost: int, optional
+        :return: A new user instance
+        :rtype: T_User
+        """
+        session = BaseUrlSession(host)
+        salt = hashlib.sha1(
+            f"{email}:{secrets.token_hex(128 // 8 // 2)}".encode()
+        ).hexdigest()
+        auth_keys = cls._build_keys(password, salt, cost)
+        response = session.post(
+            constants.ENDPOINTS["register"],
+            params={
+                "email": email,
+                "password": auth_keys.password_key,
+                "pw_cost": cost,
+                "pw_salt": salt,
+            },
+        )
+        result = ujson.loads(response.text)
+        if response.status_code != 200:
+            cls._handle_error(result.get("error"))
+        user = cls(email, host, *args, **kwargs)
+        user.auth_keys = auth_keys
+        user.uuid = result["user"]["uuid"]
+        user.session.headers.update({"Authorization": f"Bearer {result['token']}"})
+        # FIXME: this is messy
+        user._User__authenticated = True
+
+    @classmethod
+    def login(
+        cls,
+        email: str,
+        password: str,
+        host: str = constants.DEFAULT_HOST,
+        mfa: str = None,
+        *args,
+        **kwargs,
+    ) -> T_User:
+        """Shortcut to quickly create a new user instance given an email and password.
+
+        :param email: The email of the user
+        :type email: str
+        :param password: The password of the user
+        :type password: str
+        :param host: The host to login to, defaults to constants.DEFAULT_HOST
+        :param host: str, optional
+        :param mfa: MFA code (if multi-factor authentication enabled), defaults to None
+        :param mfa: str, optional
+        :return: A new user instance
+        :rtype: T_User
+        """
+        user = cls(email, host, *args, **kwargs)
+        user.authenticate(password, mfa=mfa)
+        return user
+
+    def _make_request(self, method: str, endpoint: str, **kwargs) -> dict:
+        """A simple abstraction for making a request to a standard file endpoint.
+
+        :param method: The method to use for the request
+        :type method: str
+        :param endpoint: The endpoint to request for
+        :type endpoint: str
+        :raises ValueError: If the given endpoint does not exist
+        :return: The parsed response dictionary
+        :rtype: dict
+        """
+        endpoint = constants.ENDPOINTS.get(endpoint)
+        if not endpoint:
+            raise ValueError(f"no such endpoint {endpoint!r} exists")
+        response = getattr(self.session, method)(endpoint, **kwargs)
+        result = ujson.loads(response.text)
+        if response.status_code != 200:
+            self._handle_error(result.get("error"))
+        return result
 
     def _init_mfa(self):
         """Initializes the mfa properties.
@@ -144,7 +274,7 @@ class User(Generic[T_User], StandardFileObject):
                 self._mfa_required = True
                 self._mfa_key = error.get("payload", {}).get("mfa_key")
 
-    def login(self, password: str, mfa: str = None) -> T_User:
+    def authenticate(self, password: str, mfa: str = None) -> T_User:
         """Logs the user into the standard file server.
 
         :param password: The password of the user
@@ -228,6 +358,7 @@ class User(Generic[T_User], StandardFileObject):
                     remote_content = item.to_dict()
 
                     del remote_content["content"]
+                    del remote_content["enc_item_key"]
                     local_content.update(remote_content)
 
                     with write_to.open("w") as rewrite_stream:
@@ -245,7 +376,7 @@ class User(Generic[T_User], StandardFileObject):
 
         :param item: The item to decrypt
         :type item: Item
-        :raises ValueError: If the item has no content
+        :raises ValueError: If the item has no decryptable content
         :raises exceptions.AuthRequired: If the calling user isn't authenticated yet
         :raises exceptions.TamperDetected: When the local uuid doesn't match the item id
         :return: The resulting content dictionary
@@ -256,42 +387,33 @@ class User(Generic[T_User], StandardFileObject):
             raise exceptions.AuthRequired(
                 f"{self.email!r} must login before they can decrypt"
             )
-        if not item.content or len(item.content) <= 0:
-            raise ValueError(f"item {item!r} has no content")
+        if item.deleted:
+            raise ValueError(f"item {item!r} is deleted and cannot be decrypted")
+        if not all(isinstance(_, String) for _ in (item.enc_item_key, item.content)):
+            raise ValueError(f"item {item!r} has no encrypted content")
 
-        enc_string = Cryptographer.parse_string(item.enc_item_key)
-        if item.uuid != enc_string.uuid:
+        if item.uuid != item.enc_item_key.uuid or item.uuid != item.content.uuid:
             raise exceptions.TamperDetected(
                 (
-                    f"item uuid {item.uuid!r} does not match encryption key "
-                    f"uuid {enc_string.uuid!r}"
+                    f"item uuid {item.uuid!r} does not match both encryption uuids, "
+                    f"(enc_item_key, {item.enc_item_key.uuid!r}), "
+                    f"(content, {item.content.uuid!r})"
                 )
             )
 
         item_key = Cryptographer.decrypt_string(
-            enc_string,
+            item.enc_item_key,
             binascii.a2b_hex(self.auth_keys.master_key),
             binascii.a2b_hex(self.auth_keys.auth_key),
         )
-
         item_split = len(item_key) // 2
         (item_encryption_key, item_auth_key) = (
             item_key[:item_split],
             item_key[item_split:],
         )
-
-        content_string = Cryptographer.parse_string(item.content)
-        if item.uuid != content_string.uuid:
-            raise exceptions.TamperDetected(
-                (
-                    f"item uuid {item.uuid!r} does not match content "
-                    f"uuid {content_string.uuid!r}"
-                )
-            )
-
         return ujson.loads(
             Cryptographer.decrypt_string(
-                content_string,
+                item.content,
                 binascii.a2b_hex(item_encryption_key),
                 binascii.a2b_hex(item_auth_key),
             )

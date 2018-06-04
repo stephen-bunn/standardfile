@@ -5,5 +5,6 @@ DEFAULT_HOST = "https://n3.standardnotes.org"
 ENDPOINTS = {
     "auth_params": "/auth/params",
     "sign_in": "/auth/sign_in",
+    "register": "/auth",
     "sync": "/items/sync",
 }
