@@ -23,6 +23,17 @@ class String(Generic[T_String]):
     cipher_text = attr.ib(type=str, repr=False)
 
     @classmethod
+    def is_valid(cls, string: str) -> bool:
+        """Check if a given string is valid.
+
+        :param string: The string the check
+        :type string: str
+        :return: True if valid, otherwise False
+        :rtype: bool
+        """
+        return isinstance(string, str) and len(string) > 0 and string.count(":") == 4
+
+    @classmethod
     def from_string(cls, string: str) -> T_String:
         """Creates an instance from a string.
 
@@ -31,7 +42,7 @@ class String(Generic[T_String]):
         :return: An instance of ``String``
         :rtype: T_String
         """
-        if isinstance(string, str):
+        if cls.is_valid(string):
             return cls(*string.split(":"))
 
     def to_string(self) -> str:
@@ -64,12 +75,16 @@ class Item(Generic[T_Item]):
     def __attrs_post_init__(self):
         """Initializes class attributes after initial initialization.
         """
-        if isinstance(self.enc_item_key, str):
-            self.enc_item_key = String.from_string(self.enc_item_key)
+
+        self.enc_item_key = (
+            String.from_string(self.enc_item_key)
+            if String.is_valid(self.enc_item_key)
+            else self.enc_item_key
+        )
         self.content = (
             String.from_string(self.content)
-            if isinstance(self.content, str) and isinstance(self.enc_item_key, String)
-            else None
+            if String.is_valid(self.content) and isinstance(self.enc_item_key, String)
+            else self.content
         )
 
     @classmethod
