@@ -25,6 +25,7 @@ sphinx-autodoc-typehints = "*"
 ptpython = "*"
 hypothesis = "*"
 pytest-coverage = "*"
+detox = "*"
 
 [requires]
 python_version = "3.6"
