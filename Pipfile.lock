@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "3fcca443c0c14001ceb599901753c8ad420de2d19df586e2bffb8fe437c646d3"
+            "sha256": "e36820f1951e5fc15d35527966160962a57a2ecfbe046fc70f1edd3948259032"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -58,15 +58,6 @@
                 "sha256:8c7309c718f94b3a625cb648ace320157ad16ff131ae0af362c9f21b80ef6ec4"
             ],
             "version": "==2.6"
-        },
-        "isort": {
-            "hashes": [
-                "sha256:1153601da39a25b14ddc54955dbbacbb6b2d19135386699e2ad58517953b34af",
-                "sha256:b9c40e9750f3d77e6e4d441d8b0266cf555e7cdabdcff33c4fd06366ca761ef8",
-                "sha256:ec9ef8f4a9bc6f71eec99e1806bfa2de401650d996c59330782b89a5555c1497"
-            ],
-            "index": "pypi",
-            "version": "==4.3.4"
         },
         "orderedmultidict": {
             "hashes": [
@@ -192,13 +183,6 @@
             ],
             "version": "==6.7"
         },
-        "configparser": {
-            "hashes": [
-                "sha256:5308b47021bc2340965c371f0f058cc6971a04502638d4244225c49d80db273a"
-            ],
-            "markers": "python_version < '3.2'",
-            "version": "==3.5.0"
-        },
         "coverage": {
             "hashes": [
                 "sha256:10cfac276cf3dd0acefc49444fc4e1a0a4c23c855d9fcbd555681c3a47a328e6",
@@ -253,16 +237,6 @@
                 "sha256:7a4bd47eaf6596e1295ecb11361139febe29b084a87bf005bf899f9a42edc3c6"
             ],
             "version": "==0.14"
-        },
-        "enum34": {
-            "hashes": [
-                "sha256:2d81cbbe0e73112bdfe6ef8576f2238f2ba27dd0d55752a776c41d38b7da2850",
-                "sha256:644837f692e5f550741432dd3f223bbb9852018674981b1664e5dc339387588a",
-                "sha256:6bd0f6ad48ec2aa117d3d141940d484deccda84d4fcd884f5c3d93c23ecd8c79",
-                "sha256:8ad8c4783bf61ded74527bffb48ed9b54166685e4230386a9ed9b1279e2df5b1"
-            ],
-            "markers": "python_version < '3.4'",
-            "version": "==1.1.6"
         },
         "eventlet": {
             "hashes": [
