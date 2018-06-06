@@ -1,0 +1,11 @@
+[run]
+branch=True
+include=
+    standardfile/*
+
+[report]
+show_missing=True
+omit=
+    standardfile/__init__.py
+    standardfile/__version__.py
+    */_common.py

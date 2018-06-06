@@ -66,8 +66,11 @@ class Item(Generic[T_Item]):
         """
         if isinstance(self.enc_item_key, str):
             self.enc_item_key = String.from_string(self.enc_item_key)
-        if isinstance(self.content, str) and isinstance(self.enc_item_key, String):
-            self.content = String.from_string(self.content)
+        self.content = (
+            String.from_string(self.content)
+            if isinstance(self.content, str) and isinstance(self.enc_item_key, String)
+            else None
+        )
 
     @classmethod
     def from_dict(cls, item_dict: dict) -> T_Item:
