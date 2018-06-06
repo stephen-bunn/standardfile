@@ -1,9 +1,0 @@
-actionid: flake8
-msg: getenv
-cmdargs: ['/home/stephen-bunn/.local/share/virtualenvs/standardfile-cJ6_llqD/bin/python3.6m', '-m', 'virtualenv', '--python', '/home/stephen-bunn/.local/share/virtualenvs/standardfile-cJ6_llqD/bin/python3.6m', 'flake8']
-
-Already using interpreter /home/stephen-bunn/.local/share/virtualenvs/standardfile-cJ6_llqD/bin/python3.6m
-Using real prefix '/home/stephen-bunn/.pyenv/versions/3.6.4'
-New python executable in /home/stephen-bunn/Git/standardfile/tests/flake8/bin/python3.6m
-Also creating executable in /home/stephen-bunn/Git/standardfile/tests/flake8/bin/python
-Installing setuptools, pip, wheel...done.
