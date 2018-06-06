@@ -426,14 +426,14 @@ class User(Generic[T_User]):
         (encryption_key, auth_key) = (item_key[:key_split], item_key[key_split:])
         return Item(
             uuid=item_uuid,
-            content=Cryptographer.encrypt_string(
+            content=Cryptographer.encrypt(
                 content,
                 item_uuid,
                 binascii.a2b_hex(encryption_key),
                 binascii.a2b_hex(auth_key),
             ).to_string(),
             content_type=content_type,
-            enc_item_key=Cryptographer.encrypt_string(
+            enc_item_key=Cryptographer.encrypt(
                 item_key,
                 item_uuid,
                 binascii.a2b_hex(self.auth_keys.master_key),
@@ -475,7 +475,7 @@ class User(Generic[T_User]):
                 )
             )
 
-        item_key = Cryptographer.decrypt_string(
+        item_key = Cryptographer.decrypt(
             item.enc_item_key,
             binascii.a2b_hex(self.auth_keys.master_key),
             binascii.a2b_hex(self.auth_keys.auth_key),
@@ -485,7 +485,7 @@ class User(Generic[T_User]):
             item_key[:item_split],
             item_key[item_split:],
         )
-        return Cryptographer.decrypt_string(
+        return Cryptographer.decrypt(
             item.content,
             binascii.a2b_hex(item_encryption_key),
             binascii.a2b_hex(item_auth_key),

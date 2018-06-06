@@ -19,8 +19,10 @@ class Cryptographer(object):
     """The cryptographer class namespace.
     """
 
-    @staticmethod
-    def _unpad(content: bytes) -> bytes:
+    preferred_version = "002"
+
+    @classmethod
+    def _unpad(cls, content: bytes) -> bytes:
         """Unpad a AES decrypted content.
 
         :param content: The content to unpad
@@ -30,8 +32,8 @@ class Cryptographer(object):
         """
         return content[: -ord(content[len(content) - 1 :])]
 
-    @staticmethod
-    def _pad(content: bytes) -> bytes:
+    @classmethod
+    def _pad(cls, content: bytes) -> bytes:
         """Pad a AES encrypted content.
 
         :param content: The content to pad
@@ -42,25 +44,10 @@ class Cryptographer(object):
         block_padding = AES.block_size - len(content) % AES.block_size
         return content + (chr(block_padding) * block_padding).encode()
 
-    @staticmethod
-    def _decrypt_001(string: String, encryption_key: bytes, auth_key: bytes) -> bytes:
-        """Decrypt version 001 of a string.
-
-        :param string: The string to decrypt
-        :type string: String
-        :param encryption_key: The encryption key to use
-        :type encryption_key: bytes
-        :param auth_key: The authentication key to use
-        :type auth_key: bytes
-        :raises NotImplementedError: Currently not implemented
-        :return: The decrypted bytes
-        :rtype: bytes
-        """
-
-        raise NotImplementedError()
-
-    @staticmethod
-    def _decrypt_002(string: String, encryption_key: bytes, auth_key: bytes) -> bytes:
+    @classmethod
+    def _decrypt_002(
+        cls, string: String, encryption_key: bytes, auth_key: bytes
+    ) -> str:
         """Decryption version 002 of a string.
 
         :param string: The string to decrypt
@@ -71,8 +58,8 @@ class Cryptographer(object):
         :type auth_key: bytes
         :raises exceptions.TamperDetected: If locally computed hash doesn't match the
             string's authentication match
-        :return: The decrypted bytes
-        :rtype: bytes
+        :return: The decrypted string
+        :rtype: str
         """
         local_hash = hmac.new(
             auth_key,
@@ -90,13 +77,11 @@ class Cryptographer(object):
             )
 
         cipher = AES.new(encryption_key, AES.MODE_CBC, binascii.a2b_hex(string.iv))
-        return Cryptographer._unpad(
-            cipher.decrypt(base64.b64decode(string.cipher_text))
-        ).decode()
+        return cls._unpad(cipher.decrypt(base64.b64decode(string.cipher_text))).decode()
 
-    @staticmethod
+    @classmethod
     def _encrypt_002(
-        content: str, uuid: str, encryption_key: bytes, auth_key: bytes
+        cls, content: str, uuid: str, encryption_key: bytes, auth_key: bytes
     ) -> String:
         """Encryption version 002 of some content.
 
@@ -126,8 +111,8 @@ class Cryptographer(object):
             ":".join(["002", auth_hash, uuid, string_iv, cipher_text])
         )
 
-    @staticmethod
-    def decrypt_string(string: String, encryption_key: bytes, auth_key: bytes) -> bytes:
+    @classmethod
+    def decrypt(cls, string: String, encryption_key: bytes, auth_key: bytes) -> str:
         """Decrypts a string using a encryption and authentication key.
 
         :param string: The string to decrypt
@@ -136,24 +121,37 @@ class Cryptographer(object):
         :type encryption_key: bytes
         :param auth_key: The authentication key to use
         :type auth_key: bytes
-        :raises NotImplementedError: If the string version is not supported
-        :return: The decrypted bytes
-        :rtype: bytes
+        :raises ValueError: If the string version is not supported
+        :return: The decrypted string
+        :rtype: str
         """
-        string_decrypter = getattr(Cryptographer, f"_decrypt_{string.version}", None)
-        if not string_decrypter:
-            raise NotImplementedError(
-                f"unsupported encryption version {string.version!r}"
-            )
-        return string_decrypter(string, encryption_key, auth_key)
+        decrypter = getattr(cls, f"_decrypt_{string.version}", None)
+        if not decrypter:
+            raise ValueError(f"unsupported encryption version {string.version!r}")
+        return decrypter(string, encryption_key, auth_key)
 
-    @staticmethod
-    def encrypt_string(
-        content: str, uuid: str, encryption_key: bytes, auth_key: bytes
+    @classmethod
+    def encrypt(
+        cls, content: str, uuid: str, encryption_key: bytes, auth_key: bytes
     ) -> String:
         """Encrypts a string using a encryption and authentication key.
 
-        :raises NotImplementedError: Currently not supported
+        :param content: The content to encrypt
+        :type content: str
+        :param uuid: The desired uuid string of the new content
+        :type uuid: str
+        :param encryption_key: The encryption key to use
+        :type encryption_key: bytes
+        :param auth_key: The authentication key to use
+        :type auth_key: bytes
+        :raises ValueError: If the preferred version is not supported
+        :return: The resulting string instance
+        :rtype: String
         """
 
-        return Cryptographer._encrypt_002(content, uuid, encryption_key, auth_key)
+        encrypter = getattr(cls, f"_encrypt_{cls.preferred_version}", None)
+        if not encrypter:
+            raise ValueError(
+                f"unsupported encryption version {cls.preferred_version!r}"
+            )
+        return encrypter(content, uuid, encryption_key, auth_key)

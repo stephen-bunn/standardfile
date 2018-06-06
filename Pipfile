@@ -23,6 +23,7 @@ isort = "*"
 sphinx = "*"
 sphinx-autodoc-typehints = "*"
 ptpython = "*"
+hypothesis = "*"
 
 [requires]
 python_version = "3.6"

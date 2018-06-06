@@ -7,5 +7,6 @@ from standardfile.item import Item
 def test_init():
     pass
 
+
 def test_symmetric():
     pass
