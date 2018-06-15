@@ -2,6 +2,7 @@
 # MIT License <https://opensource.org/licenses/MIT>
 
 import os
+import tempfile
 from pathlib import Path
 
 import pytest
@@ -103,14 +104,30 @@ def test_build_keys(password, salt, cost):
     built_keys = User._build_keys(password, salt, cost)
     assert isinstance(built_keys, UserAuth)
 
+def test_sync(testing_user):
+    """Test syncing of data.
+    """
+    (email, password) = testing_user
+    with tempfile.TemporaryDirectory() as tempdir:
+        user = User.login(email, password, sync_parent=tempdir)
+        assert isinstance(user.sync_parent, Path)
+        assert user.sync_parent.is_dir()
+        assert isinstance(user.sync_dir, Path)
+        assert not user.sync_dir.is_dir()
 
-# @given(just('get'), one_of(text(), sampled_from(list(constants.ENDPOINTS.keys()))))
-# def test_make_request(method, endpoint):
-#     assert callable(User._make_request)
-#     (email, password) = testing_user
-#     user = User.login(email, password)
-#     if endpoint in constants.ENDPOINTS:
-#         pass
-#     else:
-#         with pytest.raises(ValueError):
-#             user._make_request(method, endpoint)
+        sync_results = user.sync()
+
+        sync_token = sync_results.get("sync_token")
+        assert user._User__sync_token == sync_token
+        cursor_token = sync_results.get("cursor_token")
+        assert user._User__cursor_token == cursor_token
+
+        retrieved_items = sync_results.get("retrieved_items", [])
+        assert len(retrieved_items) == len(list(user.sync_dir.iterdir()))
+        assert len(retrieved_items) == len(user.items)
+
+        if len(user.items) > 0:
+            for (_, item) in user.items.items():
+                if item.content_type == "test":
+                    assert user.decrypt(item) == "testing"
+
