@@ -17,7 +17,7 @@ from hypothesis.extra.pytz import timezones
 
 from standardfile.item import Item, String
 
-VERSION_REGEX = r"\d{3}"
+VERSION_REGEX = r"^00(?:2|3)(?!\s+)$"
 UUID_REGEX = (
     r"[0-9a-fA-F]{8}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{12}"
 )

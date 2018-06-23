@@ -16,6 +16,8 @@ class String(Generic[T_String]):
     """Defines a Standard File string.
     """
 
+    _supported_versions = ("002", "003")
+
     version = attr.ib(type=str)
     auth_hash = attr.ib(type=str, repr=False)
     uuid = attr.ib(type=str)
@@ -31,7 +33,11 @@ class String(Generic[T_String]):
         :return: True if valid, otherwise False
         :rtype: bool
         """
-        return isinstance(string, str) and len(string) > 0 and string.count(":") == 4
+        return (
+            isinstance(string, str)
+            and len(string) > 0
+            and any(string.startswith(version) for version in cls._supported_versions)
+        )
 
     @classmethod
     def from_string(cls, string: str) -> T_String:
@@ -43,7 +49,9 @@ class String(Generic[T_String]):
         :rtype: T_String
         """
         if cls.is_valid(string):
-            return cls(*string.split(":"))
+            if string.startswith("002") or string.startswith("003"):
+                return cls(*string.split(":"))
+        raise ValueError(f"unsupported string {string!r}")
 
     def to_string(self) -> str:
         """Writes string out to a dictionary.
@@ -51,9 +59,12 @@ class String(Generic[T_String]):
         :return: The resulting string
         :rtype: str
         """
-        return ":".join(
-            [self.version, self.auth_hash, self.uuid, self.iv, self.cipher_text]
-        )
+
+        if self.version in ("002", "003"):
+            return ":".join(
+                [self.version, self.auth_hash, self.uuid, self.iv, self.cipher_text]
+            )
+        raise ValueError(f"unsupported string version {self.version!r}")
 
 
 @attr.s

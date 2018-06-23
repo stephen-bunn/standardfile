@@ -21,7 +21,7 @@ from standardfile.cryptography import Cryptographer
 from standardfile.item import String
 
 
-STRING_VERSIONS = (2,)
+STRING_VERSIONS = (2, 3,)
 valid_encrypt = (
     text(),
     uuids(),
