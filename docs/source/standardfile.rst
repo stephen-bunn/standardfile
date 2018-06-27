@@ -1,54 +1,40 @@
-standardfile package
-====================
+Standard File Package
+=====================
+The following is the automatically built documentation for the entire :mod:`standardfile` package.
 
-Submodules
-----------
-
-standardfile.constants module
------------------------------
-
-.. automodule:: standardfile.constants
+.. automodule:: standardfile
     :members:
     :undoc-members:
     :show-inheritance:
 
-standardfile.cryptography module
---------------------------------
-
-.. automodule:: standardfile.cryptography
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-standardfile.exceptions module
-------------------------------
-
-.. automodule:: standardfile.exceptions
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-standardfile.item module
-------------------------
-
-.. automodule:: standardfile.item
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-standardfile.user module
-------------------------
+user
+----
 
 .. automodule:: standardfile.user
     :members:
     :undoc-members:
     :show-inheritance:
 
+item
+----
 
-Module contents
----------------
+.. automodule:: standardfile.item
+    :members:
+    :undoc-members:
+    :show-inheritance:
 
-.. automodule:: standardfile
+cryptography
+------------
+
+.. automodule:: standardfile.cryptography
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+exceptions
+----------
+
+.. automodule:: standardfile.exceptions
     :members:
     :undoc-members:
     :show-inheritance:

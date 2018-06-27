@@ -16,6 +16,7 @@ import os
 import sys
 
 sys.path.insert(0, os.path.abspath("../.."))
+sys.path.insert(0, os.path.join(os.path.abspath("."), "themes"))
 
 from standardfile import __version__
 
@@ -82,9 +83,18 @@ pygments_style = "sphinx"
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
-#
-html_theme = "sphinx_rtd_theme"
-html_theme_path = ["_themes",]
+
+html_theme_options = {
+    "description": __version__.__description__,
+    "github_user": "stephen-bunn",
+    "github_repo": "standardfile",
+    "github_type": "star",
+    "page_width": "1000px",
+    "sidebar_width": "220px",
+    "sidebar_collapse": True
+}
+html_theme_path = ["themes"]
+html_theme = "alabaster"
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the

@@ -1,14 +1,21 @@
-.. Standard File documentation master file, created by
-   sphinx-quickstart on Fri Jun  1 12:55:24 2018.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
+=============
+Standard File
+=============
 
-Welcome to Standard File's documentation!
-=========================================
+----
+
+The popular `Standard Notes <https://standardnotes.org/>`_ provides a decent spec for basic text encryption called `Standard File <https://standardfile.org/>`_.
+Given that this spec doesn't have very many decent bindings for it in Python, I decided to take a stab at it.
+
+
+User Documentation
+------------------
 
 .. toctree::
    :maxdepth: 2
-   :caption: Contents:
+
+   getting-started
+   contributing
 
 
 Project Reference
