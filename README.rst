@@ -96,7 +96,7 @@ The synced items will be accessible locally in the ``user.sync_dir`` directory a
 Decrypting Items
 ~~~~~~~~~~~~~~~~
 
-You can decrypt synced items by calling the ``user.decrypt`` function on an item.
+You can decrypt synced items by calling the ``user.decrypt`` method on an item.
 
 >>> print(user.decrypt(user.items['d3866137-f7f6-4b98-8b34-43cae416472e']))
 'testing'
@@ -105,4 +105,27 @@ You can decrypt synced items by calling the ``user.decrypt`` function on an item
 Encrypting Items
 ~~~~~~~~~~~~~~~~
 
-... TODO ...
+You can encrypt a new item by calling ``user.encrypt`` method with some content.
+
+>>> item = user.encrypt('my content', 'my content type')
+>>> print(item)
+Item(uuid='3120ebf8-a6f7-4620-b99a-3e4a0233fcb1')
+
+.. note:: However, this does not mean that the resulting item is synced or even setup to be synced.
+
+The resulting item is currently only stored in memory.
+In order to add the item to the sync, you can call the ``user.create`` method with the resulting item.
+
+>>> user.create(item)
+
+
+Now the created item exists locally and will be synced up to the remote whenever ``user.sync`` is called again.
+
+----
+
+You can use the shortcut method ``user.create_from`` with an existing file to encrypt and create the item with one call.
+
+>>> item = user.create_from('/path/to/existing/file')
+
+
+This item **is** currently setup to be synced and will be the next time ``user.sync`` is called.
