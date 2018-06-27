@@ -25,6 +25,9 @@ Usage
 | **Please keep in mind** that this module is still very alpha and some things are definitely not supported and other things are probably broken.
 
 
+**Currently the way items are updated by the user is done poorly, I am working on making it easier to interact with items.**
+
+
 Logging In
 ~~~~~~~~~~
 
