@@ -89,6 +89,9 @@ The retrieved items are accesible through the ``user.items`` dictionary.
 
 The synced items will be accessible locally in the ``user.sync_dir`` directory as a file named ``d3866137-f7f6-4b98-8b34-43cae416472e``.
 
+| Following the basic worflow of authentication based synced storage systems, *currently* we don't allow a ``user`` to access their items through ``user.items`` if they are not authenticated and they have not run sync at least once.
+| This is because we want to ensure the user has up to date items before they are allowed to modify anything.
+
 
 Decrypting Items
 ~~~~~~~~~~~~~~~~
