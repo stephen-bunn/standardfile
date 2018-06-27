@@ -31,6 +31,9 @@ Usage
 | **Please keep in mind** that this module is still very alpha and some things are definitely not supported and other things are probably broken.
 
 
+**Currently the way items are updated by the user is done poorly, I am working on making it easier to interact with items.**
+
+
 Logging In
 ~~~~~~~~~~
 
@@ -100,8 +103,8 @@ The synced items will be accessible locally in the ``user.sync_dir`` directory a
 
 
 
-Decrypting Items
-~~~~~~~~~~~~~~~~
+Decrypting / Reading Items
+~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 You can decrypt synced items by calling the ``user.decrypt`` method on an item.
 
@@ -109,8 +112,8 @@ You can decrypt synced items by calling the ``user.decrypt`` method on an item.
 'testing'
 
 
-Encrypting Items
-~~~~~~~~~~~~~~~~
+Encrypting / Creating Items
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 You can encrypt a new item by calling ``user.encrypt`` method with some content.
 
@@ -136,3 +139,23 @@ You can use the shortcut method ``user.create_from`` with an existing file to en
 
 
 This item **is** currently setup to be synced and will be the next time ``user.sync`` is called.
+
+
+Deleting Items
+~~~~~~~~~~~~~~
+
+Deleting items should be done through the method ``user.delete``.
+
+>>> user.delete(item)
+
+This will toggle the ``deleted`` flag and setup the item to be synced to the remote the next time ``user.sync`` is called.
+
+
+Updating Items
+~~~~~~~~~~~~~~
+
+If you have changed the content of an item, you can setup the item for syncing  using the ``user.update`` method.
+
+>>> user.update(item)
+
+This will cause the item to be re-synced the next time ``user.sync`` is called.
