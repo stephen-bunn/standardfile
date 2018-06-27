@@ -107,3 +107,4 @@ venv.bak/
 # custom settings
 .vscode/
 main.py
+Pipfile.lock
