@@ -74,7 +74,6 @@ Syncing Items
 Standard File works by essentially cloning the server's synced directory.
 This is done through the simple ``sync`` command which clones the server items into the ``user.sync_dir`` folder.
 
->>> sync_result = user.sync()
 >>> print(user.sync_dir)
 /home/user/Git/standardfile/d79ca65d-3135-404c-a14d-e45b4226c101
 >>> sync_results = user.sync()

@@ -433,7 +433,7 @@ class User(Generic[T_User]):
             deleted=False,
             created_at=arrow.utcnow().isoformat(),
             updated_at=arrow.utcnow().isoformat(),
-            auth_hash=None,
+            auth_hash=None,  # TODO: idk when this is supposed to be used
         )
 
     def decrypt(self, item: Item) -> dict:
