@@ -26,6 +26,7 @@ hypothesis = "*"
 pytest-coverage = "*"
 detox = "*"
 pytest-xdist = "*"
+coverage = "*"
 
 [requires]
 python_version = "3.6"
