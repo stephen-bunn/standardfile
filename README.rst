@@ -10,6 +10,7 @@ A library for accessing and interacting with a Standard File server.
       <a href="https://github.com/stephen-bunn/standardfile/blob/master/LICENSE" target="_blank"><img alt="License" src="https://img.shields.io/github/license/stephen-bunn/standardfile.svg"></a>
       <a href="https://travis-ci.org/stephen-bunn/standardfile" target="_blank"><img alt="Build Status" src="https://travis-ci.org/stephen-bunn/standardfile.svg?branch=master"></a>
       <a href="https://standardfile.readthedocs.io/" target="_blank"><img alt="Documentation Status" src="https://img.shields.io/readthedocs/standardfile.svg"></a>
+      <a href="https://www.codacy.com/app/stephen-bunn/standardfile?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=stephen-bunn/standardfile&amp;utm_campaign=Badge_Grade"><img src="https://api.codacy.com/project/badge/Grade/235fcd8337b64a7496a0043191205f3e"/></a>
       <a href="https://saythanks.io/to/stephen-bunn" target="_blank"><img alt="Say Thanks!" src="https://img.shields.io/badge/Say%20Thanks-!-1EAEDB.svg"></a>
    </p>
    <p align="center">
