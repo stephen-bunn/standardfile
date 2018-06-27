@@ -111,9 +111,9 @@ You can encrypt a new item by calling ``user.encrypt`` method with some content.
 >>> print(item)
 Item(uuid='3120ebf8-a6f7-4620-b99a-3e4a0233fcb1')
 
-.. note:: However, this does not mean that the resulting item is synced or even setup to be synced.
+| However, this does not mean that the resulting item is synced or even setup to be synced.
+| The resulting item is currently only stored in memory.
 
-The resulting item is currently only stored in memory.
 In order to add the item to the sync, you can call the ``user.create`` method with the resulting item.
 
 >>> user.create(item)
