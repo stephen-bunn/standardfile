@@ -46,21 +46,36 @@ class Cryptographer(object):
         return content + (chr(block_padding) * block_padding).encode()
 
     @classmethod
-    def _decrypt_002(
+    def _encryption_type2(
+        cls,
+        content: str,
+        uuid: str,
+        version: str,
+        encryption_key: bytes,
+        auth_key: bytes,
+    ) -> String:
+        """Encrypt using the second type of encryption for some content.
+        """
+        iv = secrets.token_bytes(128 // 8)
+        string_iv = binascii.b2a_hex(iv).decode()
+        cipher = AES.new(encryption_key, AES.MODE_CBC, iv)
+        cipher_text = base64.b64encode(
+            cipher.encrypt(cls._pad(content.encode()))
+        ).decode()
+        auth_hash = hmac.new(
+            auth_key,
+            msg=":".join([version, uuid, string_iv, cipher_text]).encode(),
+            digestmod=hashlib.sha256,
+        ).hexdigest()
+        return String.from_string(
+            ":".join([version, auth_hash, uuid, string_iv, cipher_text])
+        )
+
+    @classmethod
+    def _decryption_type2(
         cls, string: String, encryption_key: bytes, auth_key: bytes
     ) -> str:
-        """Decryption version 002 of a string.
-
-        :param string: The string to decrypt
-        :type string: String
-        :param encryption_key: The encryption key to use
-        :type encryption_key: bytes
-        :param auth_key: The authentication key to use
-        :type auth_key: bytes
-        :raises exceptions.TamperDetected: If locally computed hash doesn't match the
-            string's authentication match
-        :return: The decrypted string
-        :rtype: str
+        """Decrypt using for the second type of encryption for a string.
         """
         local_hash = hmac.new(
             auth_key,
@@ -81,87 +96,36 @@ class Cryptographer(object):
         return cls._unpad(cipher.decrypt(base64.b64decode(string.cipher_text))).decode()
 
     @classmethod
+    def _decrypt_002(
+        cls, string: String, encryption_key: bytes, auth_key: bytes
+    ) -> str:
+        """Decryption version 002 of a string.
+        """
+        return cls._decryption_type2(string, encryption_key, auth_key)
+
+    @classmethod
     def _encrypt_002(
         cls, content: str, uuid: str, encryption_key: bytes, auth_key: bytes
     ) -> String:
         """Encryption version 002 of some content.
-
-        :param content: The content to encrypt
-        :type content: str
-        :param uuid: The uuid of the encryption
-        :type uuid: str
-        :param encryption_key: The encryption key to use
-        :type encryption_key: bytes
-        :param auth_key: The authentication key to use
-        :type auth_key: bytes
-        :return: The resulting encrypted String instance
-        :rtype: String
         """
-        iv = secrets.token_bytes(128 // 8)
-        string_iv = binascii.b2a_hex(iv).decode()
-        cipher = AES.new(encryption_key, AES.MODE_CBC, iv)
-        cipher_text = base64.b64encode(
-            cipher.encrypt(cls._pad(content.encode()))
-        ).decode()
-        auth_hash = hmac.new(
-            auth_key,
-            msg=":".join(["002", uuid, string_iv, cipher_text]).encode(),
-            digestmod=hashlib.sha256,
-        ).hexdigest()
-        return String.from_string(
-            ":".join(["002", auth_hash, uuid, string_iv, cipher_text])
-        )
+        return cls._encryption_type2(content, uuid, "002", encryption_key, auth_key)
 
     @classmethod
     def _decrypt_003(
         cls, string: String, encryption_key: bytes, auth_key: bytes
     ) -> str:
         """Decryption version 003 of a string.
-
-        :param string: The string to decrypt
-        :type string: String
-        :param encryption_key: The encryption key to use
-        :type encryption_key: bytes
-        :param auth_key: The authentication key to use
-        :type auth_key: bytes
-        :raises exceptions.TamperDetected: If locally computed hash doesn't match the
-            string's authentication match
-        :return: The decrypted string
-        :rtype: str
         """
-        return cls._decrypt_002(string, encryption_key, auth_key)
+        return cls._decryption_type2(string, encryption_key, auth_key)
 
     @classmethod
     def _encrypt_003(
         cls, content: str, uuid: str, encryption_key: bytes, auth_key: bytes
     ) -> String:
         """Encryption version 003 of some content.
-
-        :param content: The content to encrypt
-        :type content: str
-        :param uuid: The uuid of the encryption
-        :type uuid: str
-        :param encryption_key: The encryption key to use
-        :type encryption_key: bytes
-        :param auth_key: The authentication key to use
-        :type auth_key: bytes
-        :return: The resulting encrypted String instance
-        :rtype: String
         """
-        iv = secrets.token_bytes(128 // 8)
-        string_iv = binascii.b2a_hex(iv).decode()
-        cipher = AES.new(encryption_key, AES.MODE_CBC, iv)
-        cipher_text = base64.b64encode(
-            cipher.encrypt(cls._pad(content.encode()))
-        ).decode()
-        auth_hash = hmac.new(
-            auth_key,
-            msg=":".join(["003", uuid, string_iv, cipher_text]).encode(),
-            digestmod=hashlib.sha256,
-        ).hexdigest()
-        return String.from_string(
-            ":".join(["003", auth_hash, uuid, string_iv, cipher_text])
-        )
+        return cls._encryption_type2(content, uuid, "003", encryption_key, auth_key)
 
     @classmethod
     def decrypt(cls, string: String, encryption_key: bytes, auth_key: bytes) -> str:
@@ -200,7 +164,6 @@ class Cryptographer(object):
         :return: The resulting string instance
         :rtype: String
         """
-
         encrypter = getattr(cls, f"_encrypt_{cls.preferred_version}", None)
         if not encrypter:
             raise ValueError(

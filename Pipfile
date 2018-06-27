@@ -26,6 +26,7 @@ ptpython = "*"
 hypothesis = "*"
 pytest-coverage = "*"
 detox = "*"
+pytest-xdist = "*"
 
 [requires]
 python_version = "3.6"
